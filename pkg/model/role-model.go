@@ -36,3 +36,10 @@ type MenuModel struct {
 	CreatedDate time.Time  `db:"created_date"`
 	UpdatedDate *time.Time `db:"updated_date"`
 }
+
+type ResultMenuModel struct {
+	UUID       uuid.UUID `db:"uuid"`
+	Name       string    `db:"name"`
+	Parent     *string   `db:"parent"`
+	Permission []string  `db:"permission"`
+}

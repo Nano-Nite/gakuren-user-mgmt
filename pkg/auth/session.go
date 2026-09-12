@@ -28,8 +28,7 @@ type SessionData struct {
 	UserData   *model.LoginData       `json:"user_data"`
 	TenantUUID string                 `json:"tenant_uuid"`
 	SchoolUUID string                 `json:"school_uuid"`
-	Menu       []string               `json:"menu"`
-	Permission []string               `json:"permission"`
+	Menu       map[string]interface{} `json:"menu"`
 }
 
 func tokenHash(raw string) string {
@@ -53,15 +52,16 @@ func sessionData(email string) (*SessionData, error) {
 	if err != nil {
 		return nil, err
 	}
-	permissions, err := helper.GetUserRolePermissionCodeList(user.UUID.String())
+	/* permissions, err := helper.GetUserRolePermissionCodeList(user.UUID.String())
+	if err != nil {
+		return nil, err
+	} */
+	menu, err := helper.UserMenuIntegeration(user.UUID.String())
 	if err != nil {
 		return nil, err
 	}
-	menu, err := helper.GetUserMenuList(user.UUID.String())
-	if err != nil {
-		return nil, err
-	}
-	return &SessionData{UserData: user, TenantUUID: user.TenantUUID.String(), SchoolUUID: user.SchoolUUID.String(), Permission: *permissions, Menu: *menu}, nil
+
+	return &SessionData{UserData: user, TenantUUID: user.TenantUUID.String(), SchoolUUID: user.SchoolUUID.String(), Menu: menu}, nil
 }
 
 // Each login creates an independent device session. Rotation consumes a token
@@ -124,9 +124,15 @@ func IssueSession(ctx context.Context, email, refresh string) (*SessionData, str
 	if expires.Before(accessExpires) {
 		accessExpires = expires
 	}
+
+	permission := []string{}
+	for _, v := range data.Menu {
+		permission = append(permission, v.(map[string]interface{})["permission"].([]string)...)
+	}
+
 	claims := model.AccessTokenClaims{
 		SessionID: sid, Username: email, TenantUUID: data.TenantUUID, SchoolUUID: data.SchoolUUID,
-		Roles: []string{data.UserData.RoleName}, Permission: data.Permission,
+		Roles: []string{data.UserData.RoleName}, Permission: permission,
 		RegisteredClaims: jwt.RegisteredClaims{ID: uuid.NewString(), Subject: data.UserData.UUID.String(),
 			Issuer: os.Getenv("JWT_ISSUER"), Audience: jwt.ClaimStrings{os.Getenv("JWT_AUDIENCE")},
 			ExpiresAt: jwt.NewNumericDate(accessExpires), IssuedAt: jwt.NewNumericDate(now), NotBefore: jwt.NewNumericDate(now)},
